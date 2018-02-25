@@ -1,5 +1,6 @@
 import pygame
 import random
+import fileinput
 
 class Character:
     def __init__(self, x, y, height, width):
@@ -12,7 +13,7 @@ class Character:
         self.invulnerableStartTime = False
         self.color = (255,255,255)
         self.blinkStart = True
-        self.blinkTime = None
+        self.blinkTime = -3000
         self.blinkRate = 100
 
 
@@ -52,6 +53,7 @@ class EnemyShip:
         self.yChange = 20
         self.timeShot = None
 
+
     def display(self, surface):
         pygame.draw.rect(surface, (70, 50, 50), pygame.Rect(self.x, self.y, 50, 50), 0 )
 
@@ -74,6 +76,7 @@ class Star:
         self.x = x
         self.y = y
         self.radius = radius
+        self.moveRate = None
 
     def display(self, screen):
         pygame.draw.circle(screen, (150,150,150), ((self.x), (self.y)), (self.radius))
@@ -87,7 +90,17 @@ def starryBackground(surface):
     for star in range(26):
         star = Star(random.randint(0,790), random.randint(0,690), random.randint(5,11))
         starList.append(star)
+        star.moveRate = random.randint(1, 4)
     return starList
+
+def moveStars(surface,sList):
+    for star in sList:
+        star.display(surface)
+        star.y += star.moveRate
+        if star.y > screenHeight - 0:
+            star.y = -5
+            star.x = random.randint(0, 795)
+            star.moveRate = random.randint(1, 4)
 
 def createEnemy(x,y, eList):
     newEnemy = EnemyShip(x,y)
@@ -112,15 +125,17 @@ pygame.display.set_caption("Shooty McSquare")
 quit = False
 fired = False
 
+
 createEnemy(random.randint(0, 730), random.randint(0, 200), enemyList)
 createEnemy(random.randint(0, 730), random.randint(0, 200), enemyList)
 createEnemy(random.randint(0, 730), random.randint(0, 200), enemyList)
 
 font = pygame.font.SysFont('times new roman', 75)
+subFont = pygame.font.SysFont('times new roman', 45)
 
-def displayText(displaySurface, text, x, y, textColor, screenColor):
+def displayText(displaySurface, text, x, y, textColor, screenColor, Font):
     text = text + "                                             "
-    message = font.render(text, True, textColor, screenColor)
+    message = Font.render(text, True, textColor)
     displaySurface.blit(message, (x, y))
 
 while not quit:
@@ -128,12 +143,8 @@ while not quit:
     while not done:
         screen.fill((0, 0, 0))
 
-        for star in starList:
-            star.display(screen)
-            star.y += 2
-            if star.y > screenHeight - 100:
-                star.y = -5
-                star.x = random.randint(0,795)
+        moveStars(screen,starList)
+
 
         if test.invulnerable:
             test.blink((0,0,0))
@@ -141,7 +152,7 @@ while not quit:
                 test.invulnerable = False
                 test.color = (255,255,255)
                 test.blinkStart = True
-                test.blinkTime = None
+                test.blinkTime = -3000
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -150,11 +161,15 @@ while not quit:
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_SPACE:
                     shoot(test.x + test.width / 2 - 10, test.y, projectileList, 1, (255,0,0))
+                if event.key == pygame.K_1:
+                    done = True
 
         for enemy in enemyList:
             enemy.display(screen)
             enemy.move()
             shootCooldown = 2000
+            enemyHitbox = pygame.Rect(enemy.x, enemy.y, 50, 50)
+            playerHitbox = pygame.Rect(test.x, test.y, 75, 75)
             if enemy.timeShot is None:
                 enemy.timeShot = pygame.time.get_ticks()
                 #shoot(enemy.x + 25, enemy.y + 50, projectileList, -1, (255,100,0))
@@ -162,7 +177,7 @@ while not quit:
             elif pygame.time.get_ticks() > enemy.timeShot + shootCooldown:
                 shoot(enemy.x + 25, enemy.y + 50, projectileList, -1, (255,0,0))
                 enemy.timeShot = pygame.time.get_ticks()
-            if enemy.x >= test.x and enemy.x <= test.x + test.width and enemy.y >= test.y and enemy.y <= test.y + test.height and not test.invulnerable:
+            if enemyHitbox.colliderect(playerHitbox) and not test.invulnerable: #I gotta fix this mess
                 test.lives -= 1
                 test.invulnerableStartTime = pygame.time.get_ticks()
                 test.blinkTime = pygame.time.get_ticks()
@@ -242,7 +257,7 @@ while not quit:
         color = (150,150,150)
         message = "Points: " + str(points)
         pygame.draw.rect(screen, color, pygame.Rect(0, screenHeight - 100, screenWidth, 100))
-        displayText(screen, message, 0, screenHeight - 100, (0, 0, 255), color)
+        displayText(screen, message, 0, screenHeight - 100, (0, 0, 255), color,font)
 
         if test.lives == 3:
             pygame.draw.rect(screen, (255,255,255),pygame.Rect(500, screenHeight - 75, 50,50))
@@ -253,6 +268,9 @@ while not quit:
             pygame.draw.rect(screen, (255, 255, 255), pygame.Rect(600, screenHeight - 75, 50, 50))
         elif test.lives == 1:
             pygame.draw.rect(screen, (255, 255, 255), pygame.Rect(500, screenHeight - 75, 50, 50))
+        elif test.lives == 0 and pygame.time.get_ticks() < test.invulnerableStartTime + 3500:
+            displayText(screen, "One more hit and", 240, screenHeight - 550, (255, 255, 255), (0, 0, 0), subFont)
+            displayText(screen, "you're toast!", 280, screenHeight - 475, (255, 255, 255), (0, 0, 0), subFont)
 
         if beamEnded == None:
             pygame.draw.rect(screen, (0,0,255), pygame.Rect(350, screenHeight - 70, 75, 25), 0)
@@ -284,6 +302,16 @@ while not quit:
 
     screen.fill((0, 0, 0))
     reallyDone = False
+    '''
+    filename = "ShootyMcSquare.git/blah.txt"
+    file = open(filename, "r")
+    scoreThing = file.readline().split(" ")
+    oldHighScore = (scoreThing[1])
+    if points > int(oldHighScore):
+        highScore = str(points).rstrip()
+    else:
+        highScore = str(oldHighScore).rstrip()'''
+
     while not reallyDone:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -301,5 +329,12 @@ while not quit:
                     test.invulnerable = True
                     test.invulnerableStartTime = pygame.time.get_ticks()
 
-        displayText(screen, "Game Over", 225, screenHeight - 450, (255, 255, 255), (0, 0, 0))
+        screen.fill((0,0,0))
+        moveStars(screen, starList)
+        displayText(screen, "Game Over", 225, screenHeight - 550, (255, 255, 255), (0, 0, 0), font)
+        displayText(screen, "Press 'r' to restart", 250, screenHeight - 450, (255, 255, 255), (0, 0, 0),subFont)
+
+
         pygame.display.flip()
+        clock.tick(60)
+
