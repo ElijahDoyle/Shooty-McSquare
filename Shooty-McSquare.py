@@ -15,6 +15,7 @@ class Character:
         self.blinkStart = True
         self.blinkTime = -3000
         self.blinkRate = 100
+        self.Hitbox = pygame.Rect(self.x, self.y, 75, 75)
 
 
     def display(self,surface):
@@ -38,6 +39,7 @@ class Projectile:
         self.y = y
         self.yVelocity = -25 * direction
         self.color = color
+        self.Hitbox = pygame.Rect(self.x, self.y, 20, 50)
 
     def go(self):
         self.y += self.yVelocity
@@ -52,6 +54,7 @@ class EnemyShip:
         self.xVelocity = 4
         self.yChange = 20
         self.timeShot = None
+        self.Hitbox = pygame.Rect(self.x, self.y, 50, 50)
 
 
     def display(self, surface):
@@ -106,7 +109,8 @@ def createEnemy(x,y, eList):
     newEnemy = EnemyShip(x,y)
     eList.append(newEnemy)
 
-test = Character(400,400,75,75)
+player = Character(400,400,75,75)
+
 
 pygame.init()
 clock = pygame.time.Clock()
@@ -141,18 +145,21 @@ def displayText(displaySurface, text, x, y, textColor, screenColor, Font):
 while not quit:
     starList = starryBackground(screen)
     while not done:
+        player.Hitbox = pygame.Rect(player.x, player.y, 75, 75)
+
+
         screen.fill((0, 0, 0))
 
         moveStars(screen,starList)
 
 
-        if test.invulnerable:
-            test.blink((0,0,0))
-            if pygame.time.get_ticks() > test.invulnerableStartTime + 2000:
-                test.invulnerable = False
-                test.color = (255,255,255)
-                test.blinkStart = True
-                test.blinkTime = -3000
+        if player.invulnerable:
+            player.blink((0,0,0))
+            if pygame.time.get_ticks() > player.invulnerableStartTime + 2000:
+                player.invulnerable = False
+                player.color = (255,255,255)
+                player.blinkStart = True
+                player.blinkTime = -3000
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -160,7 +167,7 @@ while not quit:
                 quit = True
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_SPACE:
-                    shoot(test.x + test.width / 2 - 10, test.y, projectileList, 1, (255,0,0))
+                    shoot(player.x + player.width / 2 - 10, player.y - 25, projectileList, 1, (255,0,0))
                 if event.key == pygame.K_1:
                     done = True
 
@@ -168,8 +175,8 @@ while not quit:
             enemy.display(screen)
             enemy.move()
             shootCooldown = 2000
-            enemyHitbox = pygame.Rect(enemy.x, enemy.y, 50, 50)
-            playerHitbox = pygame.Rect(test.x, test.y, 75, 75)
+            enemy.Hitbox = pygame.Rect(enemy.x, enemy.y, 50, 50)
+
             if enemy.timeShot is None:
                 enemy.timeShot = pygame.time.get_ticks()
                 #shoot(enemy.x + 25, enemy.y + 50, projectileList, -1, (255,100,0))
@@ -177,11 +184,11 @@ while not quit:
             elif pygame.time.get_ticks() > enemy.timeShot + shootCooldown:
                 shoot(enemy.x + 25, enemy.y + 50, projectileList, -1, (255,0,0))
                 enemy.timeShot = pygame.time.get_ticks()
-            if enemyHitbox.colliderect(playerHitbox) and not test.invulnerable: #I gotta fix this mess
-                test.lives -= 1
-                test.invulnerableStartTime = pygame.time.get_ticks()
-                test.blinkTime = pygame.time.get_ticks()
-                test.invulnerable = True
+            if enemy.Hitbox.colliderect(player.Hitbox) and not player.invulnerable: #I gotta fix this mess
+                player.lives -= 1
+                player.invulnerableStartTime = pygame.time.get_ticks()
+                player.blinkTime = pygame.time.get_ticks()
+                player.invulnerable = True
                 points += 1
                 enemyList.remove(enemy)
 
@@ -192,24 +199,25 @@ while not quit:
         for projectile in projectileList:
             projectile.go()
             projectile.display(screen)
+            projectile.Hitbox = pygame.Rect(projectile.x, projectile.y, 20, 50)
             if projectile.y < -50 or projectile.y > screenHeight - 100:
                 projectileList.remove(projectile)
             for enemy in enemyList:
-                if projectile.x >= enemy.x and projectile.x <= enemy.x + 50 and projectile.y <= enemy.y + 50 and projectile.y >= enemy.y:
+                if projectile.Hitbox.colliderect(enemy.Hitbox):
                     enemyList.remove(enemy)
                     projectileList.remove(projectile)
                     timeDestroyed = pygame.time.get_ticks()
                     cooldown = 500
                     points += 1
-                if projectile.x >= test.x and projectile.x <= test.x + test.width and projectile.y >= test.y and projectile.y <= test.y + test.height and not test.invulnerable:
+                if projectile.Hitbox.colliderect(player.Hitbox) and not player.invulnerable:
                     cooldown = 500
                     if pygame.time.get_ticks() > lastHit + cooldown:
-                        test.lives -= 1
+                        player.lives -= 1
                         lastHit = pygame.time.get_ticks()
                         projectileList.remove(projectile)
-                    test.invulnerable = True
-                    test.invulnerableStartTime = pygame.time.get_ticks()
-                    test.blinkTime = pygame.time.get_ticks()
+                        player.invulnerable = True
+                        player.invulnerableStartTime = pygame.time.get_ticks()
+                        player.blinkTime = pygame.time.get_ticks()
 
         if timeDestroyed != None and pygame.time.get_ticks() > timeDestroyed + cooldown:
             createEnemy(random.randint(0, 730), random.randint(0, 200), enemyList)
@@ -224,13 +232,13 @@ while not quit:
 
         pressed = pygame.key.get_pressed()
         if pressed[pygame.K_UP]:
-            test.y -= 8
+            player.y -= 8
         if pressed[pygame.K_DOWN]:
-            test.y += 8
+            player.y += 8
         if pressed[pygame.K_LEFT]:
-            test.x -= 8
+            player.x -= 8
         if pressed[pygame.K_RIGHT]:
-            test.x += 8
+            player.x += 8
         if pressed[pygame.K_1]:
             for projectile in projectileList:
                 print(projectile)
@@ -239,36 +247,36 @@ while not quit:
             if beamStarted == None:
                 beamStarted = pygame.time.get_ticks()
             elif pygame.time.get_ticks() <= beamStarted + 500:
-                shoot(test.x + test.width / 2 - 10, test.y, projectileList, 1, (0,20,225))
+                shoot(player.x + player.width / 2 - 10, player.y - 25, projectileList, 1, (0,20,225))
             elif pygame.time.get_ticks() > beamStarted + 500:
                 beamEnded = pygame.time.get_ticks()
                 fired = False
 
-        if test.x < 0:
-            test.x = 1
-        elif test.x > screenWidth - test.width:
-            test.x = screenWidth - test.width - 1
-        if test.y < 0:
-            test.y = 1
-        elif test.y > (screenHeight - 100) - test.height:
-            test.y = screenHeight - test.height - 101
+        if player.x < 0:
+            player.x = 1
+        elif player.x > screenWidth - player.width:
+            player.x = screenWidth - player.width - 1
+        if player.y < 0:
+            player.y = 1
+        elif player.y > (screenHeight - 100) - player.height:
+            player.y = screenHeight - player.height - 101
 
-        test.display(screen)
+        player.display(screen)
         color = (150,150,150)
         message = "Points: " + str(points)
         pygame.draw.rect(screen, color, pygame.Rect(0, screenHeight - 100, screenWidth, 100))
         displayText(screen, message, 0, screenHeight - 100, (0, 0, 255), color,font)
 
-        if test.lives == 3:
+        if player.lives == 3:
             pygame.draw.rect(screen, (255,255,255),pygame.Rect(500, screenHeight - 75, 50,50))
             pygame.draw.rect(screen, (255, 255, 255), pygame.Rect(600, screenHeight - 75, 50, 50))
             pygame.draw.rect(screen, (255, 255, 255), pygame.Rect(700, screenHeight - 75, 50, 50))
-        elif test.lives == 2:
+        elif player.lives == 2:
             pygame.draw.rect(screen, (255,255,255),pygame.Rect(500, screenHeight - 75, 50,50))
             pygame.draw.rect(screen, (255, 255, 255), pygame.Rect(600, screenHeight - 75, 50, 50))
-        elif test.lives == 1:
+        elif player.lives == 1:
             pygame.draw.rect(screen, (255, 255, 255), pygame.Rect(500, screenHeight - 75, 50, 50))
-        elif test.lives == 0 and pygame.time.get_ticks() < test.invulnerableStartTime + 3500:
+        elif player.lives == 0 and pygame.time.get_ticks() < player.invulnerableStartTime + 3500:
             displayText(screen, "One more hit and", 240, screenHeight - 550, (255, 255, 255), (0, 0, 0), subFont)
             displayText(screen, "you're toast!", 280, screenHeight - 475, (255, 255, 255), (0, 0, 0), subFont)
 
@@ -287,12 +295,12 @@ while not quit:
 
         pygame.draw.rect(screen, (255, 255, 255), pygame.Rect(350, screenHeight - 70, 75, 25), 2)
 
-        if test.lives == -1:
+        if player.lives == -1:
             for blinks in range(3):
-                pygame.draw.rect(screen, (0, 0, 0), pygame.Rect(test.x, test.y, test.height, test.width), 0)
+                pygame.draw.rect(screen, (0, 0, 0), pygame.Rect(player.x, player.y, player.height, player.width), 0)
                 pygame.display.flip()
                 pygame.time.delay(500)
-                test.display(screen)
+                player.display(screen)
                 pygame.display.flip()
                 pygame.time.delay(500)
             done = True
@@ -323,11 +331,11 @@ while not quit:
                     reallyDone = True
                     done = False
                     points = 0
-                    test.x = 350
-                    test.y = 650
-                    test.lives = 3
-                    test.invulnerable = True
-                    test.invulnerableStartTime = pygame.time.get_ticks()
+                    player.x = 350
+                    player.y = 650
+                    player.lives = 3
+                    player.invulnerable = True
+                    player.invulnerableStartTime = pygame.time.get_ticks()
 
         screen.fill((0,0,0))
         moveStars(screen, starList)
