@@ -1,6 +1,6 @@
 import pygame
 import random
-import fileinput
+import sys
 
 class Character:
     def __init__(self, x, y, height, width):
@@ -109,6 +109,11 @@ def createEnemy(x,y, eList):
     newEnemy = EnemyShip(x,y)
     eList.append(newEnemy)
 
+def displayText(displaySurface, text, x, y, textColor, screenColor, Font):
+    text = text + "                                             "
+    message = Font.render(text, True, textColor)
+    displaySurface.blit(message, (x, y))
+
 player = Character(400,400,75,75)
 
 
@@ -128,6 +133,8 @@ lastHit = 0
 pygame.display.set_caption("Shooty McSquare")
 quit = False
 fired = False
+finished = False
+starList = starryBackground(screen)
 
 
 createEnemy(random.randint(0, 730), random.randint(0, 200), enemyList)
@@ -137,13 +144,24 @@ createEnemy(random.randint(0, 730), random.randint(0, 200), enemyList)
 font = pygame.font.SysFont('times new roman', 75)
 subFont = pygame.font.SysFont('times new roman', 45)
 
-def displayText(displaySurface, text, x, y, textColor, screenColor, Font):
-    text = text + "                                             "
-    message = Font.render(text, True, textColor)
-    displaySurface.blit(message, (x, y))
 
 while not quit:
-    starList = starryBackground(screen)
+    while not finished:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                finished = True
+                sys.exit()
+
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_SPACE:
+                    finished = True
+        screen.fill((0, 0, 0))
+        moveStars(screen, starList)
+        displayText(screen, "Shooty McSquare", 120, screenHeight - 550, (0, 255, 255), (0, 0, 0), font)
+        displayText(screen, "Press space to start", 210, screenHeight - 450, (255, 255, 255), (0, 0, 0), subFont)
+
+        pygame.display.flip()
+        clock.tick(60)
     while not done:
         player.Hitbox = pygame.Rect(player.x, player.y, 75, 75)
 
@@ -330,6 +348,7 @@ while not quit:
                 if event.key == pygame.K_r:
                     reallyDone = True
                     done = False
+                    finished = False
                     points = 0
                     player.x = 350
                     player.y = 650
@@ -339,10 +358,9 @@ while not quit:
 
         screen.fill((0,0,0))
         moveStars(screen, starList)
-        displayText(screen, "Game Over", 225, screenHeight - 550, (255, 255, 255), (0, 0, 0), font)
+        displayText(screen, "Game Over", 225, screenHeight - 550, (255, 120, 12), (0, 0, 0), font)
         displayText(screen, "Press 'r' to restart", 250, screenHeight - 450, (255, 255, 255), (0, 0, 0),subFont)
 
 
         pygame.display.flip()
         clock.tick(60)
-
