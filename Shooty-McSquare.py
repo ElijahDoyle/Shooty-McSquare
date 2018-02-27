@@ -15,7 +15,7 @@ class Character:
         self.blinkStart = True
         self.blinkTime = -3000
         self.blinkRate = 100
-        self.Hitbox = pygame.Rect(self.x, self.y, 75, 75)
+        self.hitbox = pygame.Rect(self.x, self.y, 75, 75)
 
 
     def display(self,surface):
@@ -39,7 +39,7 @@ class Projectile:
         self.y = y
         self.yVelocity = -25 * direction
         self.color = color
-        self.Hitbox = pygame.Rect(self.x, self.y, 20, 50)
+        self.hitbox = pygame.Rect(self.x, self.y, 20, 50)
 
     def go(self):
         self.y += self.yVelocity
@@ -54,7 +54,7 @@ class EnemyShip:
         self.xVelocity = 4
         self.yChange = 20
         self.timeShot = None
-        self.Hitbox = pygame.Rect(self.x, self.y, 50, 50)
+        self.hitbox = pygame.Rect(self.x, self.y, 50, 50)
 
 
     def display(self, surface):
@@ -73,6 +73,27 @@ class EnemyShip:
 
     def shoot(self):
         shoot(self.x/2 + 5, self.y + 50, projectileList, -1)
+
+class Shield:
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+        self.hitbox = pygame.Rect(self.x, self.y, 85, 85)
+        self.active = False
+        self.hit = False
+
+    def display(self, screen, player):
+        if self.active == True:
+            pygame.draw.rect(screen, (0, 150, 255), self.hitbox, 10)
+
+    def defend(self,rect, rectList):
+        if self.hitbox.colliderect(rect.hitbox) and self.active == True:
+            rectList.remove(rect)
+            self.hit = True
+            return True
+        else:
+            self.hit = False
+            return False
 
 class Star:
     def __init__(self,x,y,radius):
@@ -107,6 +128,9 @@ def moveStars(surface,sList):
 
 def createEnemy(x,y, eList):
     newEnemy = EnemyShip(x,y)
+    directionChance = random.randint(1,2)
+    if directionChance == 1:
+        newEnemy.xVelocity = -4
     eList.append(newEnemy)
 
 def displayText(displaySurface, text, x, y, textColor, screenColor, Font):
@@ -115,6 +139,7 @@ def displayText(displaySurface, text, x, y, textColor, screenColor, Font):
     displaySurface.blit(message, (x, y))
 
 player = Character(400,400,75,75)
+shield = Shield(player.x, player.y)
 
 
 pygame.init()
@@ -126,24 +151,25 @@ done = False
 projectileList = []
 enemyList = []
 timeDestroyed = None
-beamStarted = None
-beamEnded = None
+specialActivated = None
+specialDeactivated = None
 points = 0
 lastHit = 0
 pygame.display.set_caption("Shooty McSquare")
 quit = False
-fired = False
+beamFired = False
 finished = False
 starList = starryBackground(screen)
+cooldown = 1000
 
-
-createEnemy(random.randint(0, 730), random.randint(0, 200), enemyList)
-createEnemy(random.randint(0, 730), random.randint(0, 200), enemyList)
-createEnemy(random.randint(0, 730), random.randint(0, 200), enemyList)
 
 font = pygame.font.SysFont('times new roman', 75)
 subFont = pygame.font.SysFont('times new roman', 45)
+subSubFont = pygame.font.SysFont('times new roman', 35)
 
+createEnemy(random.randint(0, 730), random.randint(0, 200), enemyList)
+createEnemy(random.randint(0, 730), random.randint(0, 200), enemyList)
+createEnemy(random.randint(0, 730), random.randint(0, 200), enemyList)
 
 while not quit:
     while not finished:
@@ -163,7 +189,7 @@ while not quit:
         pygame.display.flip()
         clock.tick(60)
     while not done:
-        player.Hitbox = pygame.Rect(player.x, player.y, 75, 75)
+        player.hitbox = pygame.Rect(player.x, player.y, 75, 75)
 
 
         screen.fill((0, 0, 0))
@@ -193,7 +219,8 @@ while not quit:
             enemy.display(screen)
             enemy.move()
             shootCooldown = 2000
-            enemy.Hitbox = pygame.Rect(enemy.x, enemy.y, 50, 50)
+            enemy.hitbox = pygame.Rect(enemy.x, enemy.y, 50, 50)
+
 
             if enemy.timeShot is None:
                 enemy.timeShot = pygame.time.get_ticks()
@@ -202,33 +229,31 @@ while not quit:
             elif pygame.time.get_ticks() > enemy.timeShot + shootCooldown:
                 shoot(enemy.x + 25, enemy.y + 50, projectileList, -1, (255,0,0))
                 enemy.timeShot = pygame.time.get_ticks()
-            if enemy.Hitbox.colliderect(player.Hitbox) and not player.invulnerable: #I gotta fix this mess
+            if enemy.hitbox.colliderect(player.hitbox) and not player.invulnerable and enemy in enemyList: #I gotta fix this mess
                 player.lives -= 1
+                shield.active = False
+                specialDeactivated = pygame.time.get_ticks()
                 player.invulnerableStartTime = pygame.time.get_ticks()
                 player.blinkTime = pygame.time.get_ticks()
                 player.invulnerable = True
                 points += 1
+                timeDestroyed = pygame.time.get_ticks()
                 enemyList.remove(enemy)
-
-        if len(enemyList) < 2:
-            createEnemy(random.randint(0, 750), random.randint(0, 200), enemyList)
-
 
         for projectile in projectileList:
             projectile.go()
             projectile.display(screen)
-            projectile.Hitbox = pygame.Rect(projectile.x, projectile.y, 20, 50)
+            projectile.hitbox = pygame.Rect(projectile.x, projectile.y, 20, 50)
+            shield.defend(projectile, projectileList)
             if projectile.y < -50 or projectile.y > screenHeight - 100:
                 projectileList.remove(projectile)
             for enemy in enemyList:
-                if projectile.Hitbox.colliderect(enemy.Hitbox):
+                if projectile.hitbox.colliderect(enemy.hitbox):
                     enemyList.remove(enemy)
                     projectileList.remove(projectile)
                     timeDestroyed = pygame.time.get_ticks()
-                    cooldown = 500
                     points += 1
-                if projectile.Hitbox.colliderect(player.Hitbox) and not player.invulnerable:
-                    cooldown = 500
+                if projectile.hitbox.colliderect(player.hitbox) and not player.invulnerable and projectile in projectileList:
                     if pygame.time.get_ticks() > lastHit + cooldown:
                         player.lives -= 1
                         lastHit = pygame.time.get_ticks()
@@ -236,17 +261,15 @@ while not quit:
                         player.invulnerable = True
                         player.invulnerableStartTime = pygame.time.get_ticks()
                         player.blinkTime = pygame.time.get_ticks()
+        if len(enemyList) < 2:
+            timeStamp = pygame.time.get_ticks()
+            createEnemy(random.randint(0, 730), random.randint(0, 200), enemyList)
 
-        if timeDestroyed != None and pygame.time.get_ticks() > timeDestroyed + cooldown:
+
+        if timeDestroyed != None and pygame.time.get_ticks() > timeDestroyed + cooldown :
             createEnemy(random.randint(0, 730), random.randint(0, 200), enemyList)
             timeDestroyed = None
             timeShot = None
-
-        if beamEnded != None:
-            if pygame.time.get_ticks() >= beamEnded + 3000:
-                beamStarted = None
-                beamEnded = None
-                fired = False
 
         pressed = pygame.key.get_pressed()
         if pressed[pygame.K_UP]:
@@ -257,18 +280,35 @@ while not quit:
             player.x -= 8
         if pressed[pygame.K_RIGHT]:
             player.x += 8
-        if pressed[pygame.K_1]:
-            for projectile in projectileList:
-                print(projectile)
-        if (pressed[pygame.K_w] and beamEnded == None) or fired:
-            fired = True
-            if beamStarted == None:
-                beamStarted = pygame.time.get_ticks()
-            elif pygame.time.get_ticks() <= beamStarted + 500:
-                shoot(player.x + player.width / 2 - 10, player.y - 25, projectileList, 1, (0,20,225))
-            elif pygame.time.get_ticks() > beamStarted + 500:
-                beamEnded = pygame.time.get_ticks()
-                fired = False
+
+        if ((pressed[pygame.K_w] and specialDeactivated is None) or beamFired) and not shield.active:
+            beamFired = True
+            if specialActivated == None:
+                specialActivated = pygame.time.get_ticks()
+            elif pygame.time.get_ticks() <= specialActivated + 500:
+                shoot(player.x + player.width / 2 - 10, player.y - 30, projectileList, 1, (0,20,225))
+            elif pygame.time.get_ticks() > specialActivated + 500:
+                specialDeactivated = pygame.time.get_ticks()
+                beamFired = False
+        if (pressed[pygame.K_s] and specialDeactivated is None) or shield.active:
+            if specialActivated is None:
+                specialActivated = pygame.time.get_ticks()
+                shield.active = True
+                shield.hit = False
+            if shield.hit:
+                shield.active = False
+                specialDeactivated = pygame.time.get_ticks()
+            shield.hitbox = pygame.Rect(player.x - 8, player.y - 8, 90, 90)
+            shield.display(screen, player)
+
+        if specialDeactivated is not None:
+            if pygame.time.get_ticks() >= specialDeactivated + 3000:
+                specialActivated = None
+                specialDeactivated = None
+                beamFired = False
+                shield.active = False
+
+
 
         if player.x < 0:
             player.x = 1
@@ -298,20 +338,21 @@ while not quit:
             displayText(screen, "One more hit and", 240, screenHeight - 550, (255, 255, 255), (0, 0, 0), subFont)
             displayText(screen, "you're toast!", 280, screenHeight - 475, (255, 255, 255), (0, 0, 0), subFont)
 
-        if beamEnded == None:
-            pygame.draw.rect(screen, (0,0,255), pygame.Rect(350, screenHeight - 70, 75, 25), 0)
-        elif beamEnded + 1000 > pygame.time.get_ticks() >= beamEnded + 500:
-            pygame.draw.rect(screen, (0, 0, 255), pygame.Rect(350, screenHeight - 70, 12, 25), 0)
-        elif beamEnded + 1500 > pygame.time.get_ticks() >= beamEnded + 1000:
-            pygame.draw.rect(screen, (0, 0, 255), pygame.Rect(350, screenHeight - 70, 25, 25), 0)
-        elif beamEnded + 2000 > pygame.time.get_ticks() >= beamEnded + 1500:
-            pygame.draw.rect(screen, (0, 0, 255), pygame.Rect(350, screenHeight - 70, 37, 25), 0)
-        elif beamEnded + 2500 > pygame.time.get_ticks() >= beamEnded + 2000:
-            pygame.draw.rect(screen, (0, 0, 255), pygame.Rect(350, screenHeight - 70, 50, 25), 0)
-        elif beamEnded + 3000 > pygame.time.get_ticks() >= beamEnded + 2500:
-            pygame.draw.rect(screen, (0, 0, 255), pygame.Rect(350, screenHeight - 70, 62, 25), 0)
+        if specialDeactivated == None:
+            pygame.draw.rect(screen, (0,0,255), pygame.Rect(350, screenHeight - 40, 75, 25), 0)
+        elif specialDeactivated + 1000 > pygame.time.get_ticks() >= specialDeactivated + 500:
+            pygame.draw.rect(screen, (0, 0, 255), pygame.Rect(350, screenHeight - 40, 12, 25), 0)
+        elif specialDeactivated + 1500 > pygame.time.get_ticks() >= specialDeactivated + 1000:
+            pygame.draw.rect(screen, (0, 0, 255), pygame.Rect(350, screenHeight - 40, 25, 25), 0)
+        elif specialDeactivated + 2000 > pygame.time.get_ticks() >= specialDeactivated + 1500:
+            pygame.draw.rect(screen, (0, 0, 255), pygame.Rect(350, screenHeight - 40, 37, 25), 0)
+        elif specialDeactivated + 2500 > pygame.time.get_ticks() >= specialDeactivated + 2000:
+            pygame.draw.rect(screen, (0, 0, 255), pygame.Rect(350, screenHeight - 40, 50, 25), 0)
+        elif specialDeactivated + 3000 > pygame.time.get_ticks() >= specialDeactivated + 2500:
+            pygame.draw.rect(screen, (0, 0, 255), pygame.Rect(350, screenHeight - 40, 62, 25), 0)
 
-        pygame.draw.rect(screen, (255, 255, 255), pygame.Rect(350, screenHeight - 70, 75, 25), 2)
+        pygame.draw.rect(screen, (255, 255, 255), pygame.Rect(350, screenHeight - 40, 75, 25), 2)
+        displayText(screen, "Energy", 340, screenHeight - 90, (0, 0, 0), (0, 0, 0), subSubFont)
 
         if player.lives == -1:
             for blinks in range(3):
@@ -351,7 +392,8 @@ while not quit:
                     finished = False
                     points = 0
                     player.x = 350
-                    player.y = 650
+                    player.y = 550
+                    projectileList = []
                     player.lives = 3
                     player.invulnerable = True
                     player.invulnerableStartTime = pygame.time.get_ticks()
