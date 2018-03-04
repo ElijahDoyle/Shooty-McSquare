@@ -33,11 +33,31 @@ class Character:
                 self.blinkStart = True
                 self.blinkTime = pygame.time.get_ticks()
 
+    def move(self, screenWidth, screenHeight):
+        pressed = pygame.key.get_pressed()
+        if pressed[pygame.K_UP]:
+            player.y -= 8
+        if pressed[pygame.K_DOWN]:
+            player.y += 8
+        if pressed[pygame.K_LEFT]:
+            player.x -= 8
+        if pressed[pygame.K_RIGHT]:
+            player.x += 8
+
+        if self.x < 0:
+            self.x = 1
+        elif self.x > screenWidth - self.width:
+            self.x = screenWidth - self.width - 1
+        if self.y < 0:
+            self.y = 1
+        elif self.y > (screenHeight - 100) - self.height:
+            self.y = screenHeight - self.height - 101
+
 class Projectile:
     def __init__(self, x, y, direction, color):
         self.x = x
         self.y = y
-        self.yVelocity = -25 * direction
+        self.yVelocity = -30 * direction
         self.color = color
         self.hitbox = pygame.Rect(self.x, self.y, 20, 50)
 
@@ -161,18 +181,32 @@ beamFired = False
 finished = False
 starList = starryBackground(screen)
 cooldown = 1000
+color = (150,150,150)
 
 
 font = pygame.font.SysFont('times new roman', 75)
 subFont = pygame.font.SysFont('times new roman', 45)
 subSubFont = pygame.font.SysFont('times new roman', 35)
 
-createEnemy(random.randint(0, 730), random.randint(0, 200), enemyList)
-createEnemy(random.randint(0, 730), random.randint(0, 200), enemyList)
-createEnemy(random.randint(0, 730), random.randint(0, 200), enemyList)
+
 
 while not quit:
+    enemyList = []
+    createEnemy(random.randint(0, 730), random.randint(0, 200), enemyList)
+    createEnemy(random.randint(0, 730), random.randint(0, 200), enemyList)
+    createEnemy(random.randint(0, 730), random.randint(0, 200), enemyList)
+
     while not finished:
+
+        screen.fill((0, 0, 0))
+        moveStars(screen, starList)
+        displayText(screen, "Shooty McSquare", 120, screenHeight - 550, (0, 255, 255), (0, 0, 0), font)
+        displayText(screen, "Press space to start", 210, screenHeight - 450, (255, 255, 255), (0, 0, 0), subFont)
+        displayText(screen, "Press 't' for the tutorial", 180, screenHeight - 380, (255, 255, 255), (0, 0, 0), subFont)
+
+        pygame.display.flip()
+        clock.tick(60)
+
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 finished = True
@@ -181,16 +215,186 @@ while not quit:
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_SPACE:
                     finished = True
-        screen.fill((0, 0, 0))
-        moveStars(screen, starList)
-        displayText(screen, "Shooty McSquare", 120, screenHeight - 550, (0, 255, 255), (0, 0, 0), font)
-        displayText(screen, "Press space to start", 210, screenHeight - 450, (255, 255, 255), (0, 0, 0), subFont)
 
-        pygame.display.flip()
-        clock.tick(60)
+                elif event.key == pygame.K_t:
+                    enemyList = []
+                    createEnemy(100,100,enemyList)
+                    complete = False
+                    called = pygame.time.get_ticks()
+                    print("im working")
+                    canShoot = False
+                    instructionProjectileList = []
+                    lastAction = 1000000000000
+                    moveOn = False
+                    canMove = False
+                    showCharacter = False
+                    canSpecial = False
+                    showLives = False
+
+                    while not complete:
+
+                        screen.fill((0, 0, 0))
+                        for event in pygame.event.get():
+                            if event.type == pygame.QUIT:
+                                complete = True
+                                sys.exit()
+                            if event.type == pygame.KEYDOWN:
+                                if event.key == pygame.K_SPACE and canShoot:
+                                    if shield.active:
+                                        shield.active = False
+                                        specialDeactivated = pygame.time.get_ticks()
+                                    shoot(player.x + player.width / 2 - 10, player.y - 25,
+                                          instructionProjectileList, 1, (255, 0, 0))
+                                    if moveOn == False:
+                                        lastAction = pygame.time.get_ticks()
+                                        moveOn = True
+
+                        moveStars(screen, starList)
+                        if showCharacter:
+                            player.display(screen)
+                        if called + 3000 > pygame.time.get_ticks() > called + 1000:
+                            displayText(screen, "The Game Is Simple", 200, 300, (255, 255, 255), (0, 0, 0),
+                                        subFont)
+                        elif called + 10000 > pygame.time.get_ticks() > called + 3000:
+                            displayText(screen, " You, the white square", 175, 300, (255, 255, 255), (0, 0, 0),
+                                        subFont)
+                        if called + 10000 > pygame.time.get_ticks() > called + 6500:
+                            displayText(screen, " must defeat the enemy square ships.", 50, 350,
+                                        (255, 255, 255), (0, 0, 0), subFont)
+                        if called + 6000 > pygame.time.get_ticks() > called + 5000:
+                            player.x = 325
+                            player.y = 600
+                            showCharacter = True
+                        for enemy in enemyList:
+                            if pygame.time.get_ticks() > called + 8000:
+                                enemy.x = 330
+                                enemy.y = 100
+                                enemy.hitbox = pygame.Rect(enemy.x, enemy.y, 50, 50)
+                                enemy.display(screen)
+                        if not moveOn and pygame.time.get_ticks() > called + 11000:
+                            displayText(screen, "Press space to fire!", 220, 350, (255, 255, 255), (0, 0, 0),
+                                        subFont)
+                            canShoot = True
+                        for proj in instructionProjectileList:
+                            proj.display(screen)
+                            proj.go()
+                            proj.hitbox = pygame.Rect(proj.x, proj.y, 20, 50)
+                            for enemy in enemyList:
+                                if proj.hitbox.colliderect(enemy.hitbox):
+                                    enemyList.remove(enemy)
+                                    instructionProjectileList.remove(proj)
+
+                        if lastAction + 2500 > pygame.time.get_ticks() > lastAction + 1000 and moveOn:
+                            displayText(screen, "You got him!", 250, 350, (255, 255, 255), (0, 0, 0), subFont)
+                            canMove = True
+
+                        if lastAction + 5000 > pygame.time.get_ticks() > lastAction + 3000 and canMove:
+                            displayText(screen, "Use the arrow keys to move.", 150, 350, (255, 255, 255),
+                                        (0, 0, 0), subFont)
+
+                        if lastAction +8000 > pygame.time.get_ticks() > lastAction + 5500:
+                            displayText(screen, "You can also use Special abilities.", 100, 350, (255, 255, 255), (0, 0, 0), subFont)
+                            canSpecial = True
+
+                        if lastAction + 12000 > pygame.time.get_ticks() > lastAction + 8500:
+                            displayText(screen, "Press 'w' for a beam,", 225, 300, (255, 255, 255), (0, 0, 0), subFont)
+                            displayText(screen, "Press 's' for a shield.", 225, 350, (255, 255, 255), (0, 0, 0), subFont)
+
+                        if lastAction + 15500 > pygame.time.get_ticks() > lastAction + 12500:
+                            displayText(screen, "The shield blocks lasers,", 200, 300, (255, 255, 255), (0, 0, 0), subFont)
+                            displayText(screen, "but doesn't work against collisions.", 100, 350, (255, 255, 255), (0, 0, 0),
+                                        subFont)
+
+                        if lastAction + 19500 > pygame.time.get_ticks() > lastAction + 16000:
+                            displayText(screen, "Every time you get hit, you lose a life.", 75, 300, (255, 255, 255), (0, 0, 0), subFont)
+                            displayText(screen, "You have three lives.", 220, 350, (255, 255, 255),
+                                        (0, 0, 0), subFont)
+                            showLives = True
+
+                        if lastAction + 23000 > pygame.time.get_ticks() > lastAction + 20000:
+                            displayText(screen, "Every time you hit an enemy,", 125, 300, (255, 255, 255), (0, 0, 0), subFont)
+                            displayText(screen, "you gain a point.", 225, 350, (255, 255, 255), (0, 0, 0),
+                                        subFont)
+
+                        if lastAction + 26000 > pygame.time.get_ticks() > lastAction + 23000:
+                            displayText(screen, "Get the most points you can!", 125, 300, (255, 255, 255), (0, 0, 0), subFont)
+
+                        if canSpecial:
+                            pygame.draw.rect(screen, color, pygame.Rect(0, screenHeight - 100, screenWidth, 100))
+                            pressed = pygame.key.get_pressed()
+                            if ((pressed[
+                                     pygame.K_w] and specialDeactivated is None) or beamFired) and not shield.active:
+                                beamFired = True
+                                if specialActivated == None:
+                                    specialActivated = pygame.time.get_ticks()
+                                elif pygame.time.get_ticks() <= specialActivated + 500:
+                                    shoot(player.x + player.width / 2 - 10, player.y - 30, instructionProjectileList, 1,
+                                          (0, 20, 225))
+                                elif pygame.time.get_ticks() > specialActivated + 500:
+                                    specialDeactivated = pygame.time.get_ticks()
+                                    beamFired = False
+                            if (pressed[pygame.K_s] and specialDeactivated is None) or shield.active:
+                                if specialActivated is None:
+                                    specialActivated = pygame.time.get_ticks()
+                                    shield.active = True
+                                    shield.hit = False
+                                if shield.hit:
+                                    shield.active = False
+                                    specialDeactivated = pygame.time.get_ticks()
+                                shield.hitbox = pygame.Rect(player.x - 8, player.y - 8, 90, 90)
+                                shield.display(screen, player)
+
+                            if specialDeactivated is not None:
+                                if pygame.time.get_ticks() >= specialDeactivated + 3000:
+                                    specialActivated = None
+                                    specialDeactivated = None
+                                    beamFired = False
+                                    shield.active = False
+
+                            if specialDeactivated == None:
+                                pygame.draw.rect(screen, (0, 0, 255), pygame.Rect(350, screenHeight - 40, 75, 25), 0)
+                            elif specialDeactivated + 1000 > pygame.time.get_ticks() >= specialDeactivated + 500:
+                                pygame.draw.rect(screen, (0, 0, 255), pygame.Rect(350, screenHeight - 40, 12, 25), 0)
+                            elif specialDeactivated + 1500 > pygame.time.get_ticks() >= specialDeactivated + 1000:
+                                pygame.draw.rect(screen, (0, 0, 255), pygame.Rect(350, screenHeight - 40, 25, 25), 0)
+                            elif specialDeactivated + 2000 > pygame.time.get_ticks() >= specialDeactivated + 1500:
+                                pygame.draw.rect(screen, (0, 0, 255), pygame.Rect(350, screenHeight - 40, 37, 25), 0)
+                            elif specialDeactivated + 2500 > pygame.time.get_ticks() >= specialDeactivated + 2000:
+                                pygame.draw.rect(screen, (0, 0, 255), pygame.Rect(350, screenHeight - 40, 50, 25), 0)
+                            elif specialDeactivated + 3000 > pygame.time.get_ticks() >= specialDeactivated + 2500:
+                                pygame.draw.rect(screen, (0, 0, 255), pygame.Rect(350, screenHeight - 40, 62, 25), 0)
+
+                            pygame.draw.rect(screen, (255, 255, 255), pygame.Rect(350, screenHeight - 40, 75, 25), 2)
+                            displayText(screen, "Energy", 340, screenHeight - 90, (0, 0, 0), (0, 0, 0), subSubFont)
+                        if showLives:
+                            pygame.draw.rect(screen, (255, 255, 255), pygame.Rect(500, screenHeight - 75, 50, 50))
+                            pygame.draw.rect(screen, (255, 255, 255), pygame.Rect(600, screenHeight - 75, 50, 50))
+                            pygame.draw.rect(screen, (255, 255, 255), pygame.Rect(700, screenHeight - 75, 50, 50))
+
+                        if showCharacter:
+                            player.display(screen)
+                        if canMove:
+                            player.move(screenWidth, screenHeight)
+
+                        pygame.display.update()
+                        clock.tick(60)
+
+                        if lastAction + 1000000 > pygame.time.get_ticks() > lastAction + 26000:
+                            complete = True
+                            finished = True
+                            enemyList = []
+                            createEnemy(random.randint(0, 730), random.randint(0, 200), enemyList)
+                            createEnemy(random.randint(0, 730), random.randint(0, 200), enemyList)
+                            createEnemy(random.randint(0, 730), random.randint(0, 200), enemyList)
+                #    print("im working")
+
+
+
     while not done:
         player.hitbox = pygame.Rect(player.x, player.y, 75, 75)
 
+        if len(enemyList) > 3:
+            enemyList.remove(enemyList[2])
 
         screen.fill((0, 0, 0))
 
@@ -209,9 +413,13 @@ while not quit:
             if event.type == pygame.QUIT:
                 done = True
                 quit = True
+                sys.exit()
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_SPACE:
                     shoot(player.x + player.width / 2 - 10, player.y - 25, projectileList, 1, (255,0,0))
+                    if shield.active:
+                        shield.active = False
+                        specialDeactivated = pygame.time.get_ticks()
                 if event.key == pygame.K_1:
                     done = True
 
@@ -248,7 +456,7 @@ while not quit:
             if projectile.y < -50 or projectile.y > screenHeight - 100:
                 projectileList.remove(projectile)
             for enemy in enemyList:
-                if projectile.hitbox.colliderect(enemy.hitbox):
+                if projectile.hitbox.colliderect(enemy.hitbox) and projectile in projectileList:
                     enemyList.remove(enemy)
                     projectileList.remove(projectile)
                     timeDestroyed = pygame.time.get_ticks()
@@ -266,21 +474,15 @@ while not quit:
             createEnemy(random.randint(0, 730), random.randint(0, 200), enemyList)
 
 
+
         if timeDestroyed != None and pygame.time.get_ticks() > timeDestroyed + cooldown :
             createEnemy(random.randint(0, 730), random.randint(0, 200), enemyList)
             timeDestroyed = None
             timeShot = None
 
-        pressed = pygame.key.get_pressed()
-        if pressed[pygame.K_UP]:
-            player.y -= 8
-        if pressed[pygame.K_DOWN]:
-            player.y += 8
-        if pressed[pygame.K_LEFT]:
-            player.x -= 8
-        if pressed[pygame.K_RIGHT]:
-            player.x += 8
+        player.move(screenWidth, screenHeight)
 
+        pressed = pygame.key.get_pressed()
         if ((pressed[pygame.K_w] and specialDeactivated is None) or beamFired) and not shield.active:
             beamFired = True
             if specialActivated == None:
@@ -308,19 +510,7 @@ while not quit:
                 beamFired = False
                 shield.active = False
 
-
-
-        if player.x < 0:
-            player.x = 1
-        elif player.x > screenWidth - player.width:
-            player.x = screenWidth - player.width - 1
-        if player.y < 0:
-            player.y = 1
-        elif player.y > (screenHeight - 100) - player.height:
-            player.y = screenHeight - player.height - 101
-
         player.display(screen)
-        color = (150,150,150)
         message = "Points: " + str(points)
         pygame.draw.rect(screen, color, pygame.Rect(0, screenHeight - 100, screenWidth, 100))
         displayText(screen, message, 0, screenHeight - 100, (0, 0, 255), color,font)
@@ -362,6 +552,7 @@ while not quit:
                 player.display(screen)
                 pygame.display.flip()
                 pygame.time.delay(500)
+            enemyList = []
             done = True
 
         pygame.display.flip()
